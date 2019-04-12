@@ -1,8 +1,8 @@
 load('dataSample.mat');
-varibles = varibles.*10;%do so qua nho nen can phai nhan len de tinh toan ma tran
+varibles = varibles.*100;%do so qua nho nen can phai nhan len de tinh toan ma tran
 crom1Len = 7; %crom1 la crom chon so luong mau de can chinh model
 crom2Len = 533; %crom2 la crom chon so luong bien x co de tinh mau
-mutRate = 0.01; %ti le dot bien
+mutRate = 0.1; %ti le dot bien
 popSize = 40;%kich thuoc quan the
 
 pop = round(rand(popSize, crom1Len + crom2Len)); %Init population
@@ -20,6 +20,7 @@ iter = 0;
 while iter < n
     iter = iter + 1;
     f = [];
+    beta = [];
     %dong for nay dung de tinh gia tri cua quan the hien tai
     %Tach 7 bit dau la bit chon sample de hieu chinh lai mo hinh
     %533 bit con lai la bit chon varible de quyet dinh coef
@@ -27,7 +28,7 @@ while iter < n
         crom1 = pop(i,1:7);
         crom2 = pop(i, 8:crom1Len+crom2Len);
         cnt = 0;%bien dem so luong
-        coef = zeros;%coef
+        coef = zeros;%tham so beta
         smrep = [];%mang du doan
         %dong for nay dung de tinh coef
         for j=1:7
@@ -49,12 +50,14 @@ while iter < n
         end
         smrep = sum(smrep) / cnt;
         f = [f smrep];
+        beta = [beta coef];
     end
     %xep lai quan the theo thu tu nhat dinh
     [f, ind] = sort(f, 'ascend');
     pop = pop(ind, :);
+    beta = beta(:,ind);
     best = [best f(1)];
-    best_X = [best_X;pop(1,:)];
+    best_X = [best_X beta(:,1)];
     %lai tao quan the moi, khoi tao mot chuoi bit neu bit bang 1 thi chon
     %cua bo nguoc lai chon cua me
     %cac phan tu le chon nguoc lai
@@ -67,9 +70,9 @@ while iter < n
         buffer = best(1,iter-19:1:iter);
         deviation(iter-19) = std(buffer, 0, 2);
         clear std;
-        if deviation(iter-19) < 0.001
+        if deviation(iter-19) < 0.0001
             min = best(iter)
-            x = best_X(iter,:)
+            x = best_X(:,iter)
             break
         end
     end

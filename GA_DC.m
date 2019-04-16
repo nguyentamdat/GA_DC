@@ -1,63 +1,72 @@
+clear;
 load('dataSample.mat');
-varibles = varibles.*100;%do so qua nho nen can phai nhan len de tinh toan ma tran
-crom1Len = 7; %crom1 la crom chon so luong mau de can chinh model
-crom2Len = 533; %crom2 la crom chon so luong bien x co de tinh mau
+[crom1Len, crom2Len] = size(varibles);%crom 1 chon mau de can chinh va kiem tra crom 2 chon cac diem co the anh huong den duong hoi quy
 mutRate = 0.1; %ti le dot bien
 popSize = 40;%kich thuoc quan the
 
-pop = round(rand(popSize, crom1Len + crom2Len)); %Init population
+pop = round(rand(popSize, crom1Len + crom2Len)); %khoi tao quan the
 
 avg_fitness=zeros; %finess trung binh tung the he
-buffer = zeros(1,20); %bo nho tam luu max 20 the he gan nhat
+buffer = zeros(1,3); %bo nho tam luu min 3 the he gan nhat
 deviation = zeros; %do lech chuan tung the he
-f_tmp = zeros(1,popSize/2); %bo nho tam luu 1/2 quan the sau chon loc
-n = 500;%so the he toi da
+n = 50;%so the he toi da
 
-best = [];%mang luu gia tri tot nhat moi the he
+best = [];%mang luu gia tri ff tot nhat moi the he
 best_X = [];%mang luu nghiem tot nhat moi the he
-
+bestPop = [];%mang luu cach chon tot nhat moi the he
 iter = 0;
 while iter < n
     iter = iter + 1;
-    f = [];
-    beta = [];
+    f = [];%luu lai gia tri fitness tu ca the
+    beta = [];%luu tham so cua tung ca the tinh duoc, la nghiem can tim
     %dong for nay dung de tinh gia tri cua quan the hien tai
     %Tach 7 bit dau la bit chon sample de hieu chinh lai mo hinh
     %533 bit con lai la bit chon varible de quyet dinh coef
     for i=1:popSize
         crom1 = pop(i,1:7);
-        crom2 = pop(i, 8:crom1Len+crom2Len);
-        cnt = 0;%bien dem so luong
-        coef = zeros;%tham so beta
-        smrep = [];%mang du doan
-        %dong for nay dung de tinh coef
-        for j=1:7
-            if crom1(j) == 1
-                Temp = crom2.*varibles(j,:);
-                cnt = cnt + 1;
-                coef = coef + Temp \ samples(j);
+        %truong hop ca the chon toan bo cho tap hieu chinh hoac tap kiem
+        %tra thi loai bo ca the
+        if mean(crom1) == 0 || mean(crom1) == 1
+            f = [f; 10];
+            beta = [beta zeros(size(crom2,2)+1,1)];
+        else
+            crom2 = pop(i, 8:crom1Len+crom2Len);
+            rmsep = [];%mang tinh sai so du doan
+            Xbar = [];%mang gia tri X mo rong them cot dau la gia tri tu do bang 1
+            y = [];
+            %dong for nay dung de tinh lap ma tran cac mau de hieu chinh
+            for j=1:7
+                if crom1(j) == 1
+                    Xbar = [Xbar; crom2.*varibles(j,:)];
+                    y = [y; samples(j)];
+                end
             end
-        end
-        coef = coef ./ cnt;
-        cnt = 0;
-        %dong for nay de predict va tinh sai lech cua ham smrep
-        for j=1:7
-            if crom1(j) == 0
-                Temp = crom2.*varibles(j,:);
-                cnt = cnt + 1;
-                smrep = [smrep abs(Temp * coef - samples(j))];
+            %tinh phuong trinh w = (X_bar.T * X_bar)^-1 * X_bar.T * y voi w
+            %la nghiem
+            Xbar = [ones(size(Xbar,1),1), Xbar];
+            A = Xbar' * Xbar;
+            b = Xbar' * y;
+            w = lsqminnorm(A, b);%co the dung pinv hoac \
+            %dong for dua ra tien doan va tinh sai so
+            for j=1:7
+                if crom1(j) == 0
+                    Temp = [1, crom2.*varibles(j,:)];
+                    rmsep = [rmsep; (Temp * w - samples(j))^2];
+                end
             end
+            f = [f; mean(rmsep)];%sai so trung binh duoc luu lai
+            beta = [beta w];%luu lai nghiem tim dc
         end
-        smrep = sum(smrep) / cnt;
-        f = [f smrep];
-        beta = [beta coef];
     end
-    %xep lai quan the theo thu tu nhat dinh
+    %xep lai quan the theo thu tu tot nhat, luu lai cac gia tri tot nhat
+    %cua the he hien tai
     [f, ind] = sort(f, 'ascend');
     pop = pop(ind, :);
     beta = beta(:,ind);
+    avg_fitness(iter) = mean(f);
     best = [best f(1)];
     best_X = [best_X beta(:,1)];
+    bestPop = [bestPop; pop(1,:)];
     %lai tao quan the moi, khoi tao mot chuoi bit neu bit bang 1 thi chon
     %cua bo nguoc lai chon cua me
     %cac phan tu le chon nguoc lai
@@ -66,16 +75,19 @@ while iter < n
     bitwise = round(rand(1,crom1Len+crom2Len));
     pop(1:2:popSize,:) = (pop(dad,:) & bitwise) | (pop(mom,:) & ~bitwise);
     pop(2:2:popSize,:) = (pop(dad,:) & ~bitwise) | (pop(mom,:) & bitwise);
-    if iter >= 20
-        buffer = best(1,iter-19:1:iter);
-        deviation(iter-19) = std(buffer, 0, 2);
+    %kien tra sai so trong 3 chu ki gan nhat, neu thoa dieu kien thi dung
+    if iter >= 3
+        buffer = best(1,iter-2:1:iter);
+        deviation(iter-2) = std(buffer, 0, 2);
         clear std;
-        if deviation(iter-19) < 0.0001
-            min = best(iter)
+        if deviation(iter-2) < 0.001
+            minn = best(iter)
             x = best_X(:,iter)
+            X = bestPop(iter,:)
             break
         end
     end
+    %dot bien mot so ca the
     nmut = ceil(popSize*(crom1Len + crom2Len)*mutRate);
     for i=1:nmut
         col = randi(crom1Len+crom2Len);
@@ -83,6 +95,12 @@ while iter < n
         pop(row, col) = ~pop(row, col);
     end
 end
-hold on
-t= 1:iter;
-plot(t,best);
+%in ket qua
+if ~exist('X')
+    [minn, ind] = min(avg_fitness);
+    x = best_X(:,ind);
+end
+for i=1:7
+    disp(["Mau: ", samples(i)]);
+    disp(["Tien doan: ", [1, varibles(i,:)] * x]);
+end

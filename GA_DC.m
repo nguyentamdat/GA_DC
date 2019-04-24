@@ -23,19 +23,19 @@ while iter < n
     %Tach 7 bit dau la bit chon sample de hieu chinh lai mo hinh
     %533 bit con lai la bit chon varible de quyet dinh coef
     for i=1:popSize
-        crom1 = pop(i,1:7);
+        crom1 = pop(i,1:crom1Len);
         %truong hop ca the chon toan bo cho tap hieu chinh hoac tap kiem
         %tra thi loai bo ca the
         if mean(crom1) == 0 || mean(crom1) == 1
             f = [f; 10];
             beta = [beta zeros(size(crom2,2)+1,1)];
         else
-            crom2 = pop(i, 8:crom1Len+crom2Len);
+            crom2 = pop(i, crom1Len+1:crom1Len+crom2Len);
             rmsep = [];%mang tinh sai so du doan
             Xbar = [];%mang gia tri X mo rong them cot dau la gia tri tu do bang 1
             y = [];
             %dong for nay dung de tinh lap ma tran cac mau de hieu chinh
-            for j=1:7
+            for j=1:crom1Len
                 if crom1(j) == 1
                     Xbar = [Xbar; crom2.*varibles(j,:)];
                     y = [y; samples(j)];
@@ -96,11 +96,19 @@ while iter < n
     end
 end
 %in ket qua
+t=1:iter;
+plot(t,best);
 if ~exist('X')
     [minn, ind] = min(avg_fitness);
     x = best_X(:,ind);
 end
-for i=1:7
+figure;
+hold on;
+plot([0 18], [0 18]);
+for i=1:crom1Len
     disp(["Mau: ", samples(i)]);
     disp(["Tien doan: ", [1, varibles(i,:)] * x]);
+    plot(samples(i), [1, varibles(i,:)] * x, 'ro');
 end
+xlabel("Thuc nghiem");
+ylabel("Tien doan");
